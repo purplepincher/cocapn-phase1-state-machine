@@ -1,0 +1,74 @@
+<!--
+  family/provenance-panel.html
+  -------------------------------------------------------------------
+  Reusable honesty partial for family sites that need "what's real
+  here" framing. Drop into any site where the distinction between
+  designed / built / simulated / deterministic / load-bearing matters
+  to the visitor (cocapn.com, cocapn.ai). NOT for deckboss.net (real
+  shipped product — the framing would imply doubt where there is none)
+  and NOT for purplepincher.org.
+
+  Two pieces, matching ROUND_1_glm.md Section 2 (which itself quotes
+  SYNTHESIS.md:170-176, :416-420):
+
+    1. .provenance-status  — persistent status line, sticky, states the
+                             site's overall reality in one line. Place
+                             ONCE per page, near the top of <body>.
+                             Its persistence as the user scrolls is the
+                             mechanism; do not make it static.
+
+    2. .provenance         — inline provenance tag, attached to any
+                             element whose realness a visitor needs to
+                             know. Repeatable. Use the .provenance--block
+                             modifier for end-of-section notes.
+
+  Pair with family/provenance-panel.css (inline at build alongside
+  tokens.css + base.css). Replace [BRACKETED] placeholders with the
+  site-specific honest claim. Do not soften the language into vagueness
+  — the component only works if the words are specific.
+
+  This file is a template/fragment, not a complete document. The build
+  step concatenates the relevant pieces into each site's HTML.
+-->
+
+<!-- =====================================================================
+     1. PERSISTENT STATUS LINE
+     Place once per page, immediately after <body> opens (or as the
+     first child of the page wrapper). It must remain visible during
+     scroll for the persistence mechanism to work.
+     ===================================================================== -->
+<aside class="provenance-status" role="status" aria-live="polite">
+  <span class="provenance-status__word">[SIMULATION]</span>
+  <span class="provenance-status__text">
+    [One honest sentence stating what this page is. Example for cocapn.com:
+    &ldquo;The interactive surface below is a deterministic state machine &mdash;
+    designed, not built. No LLM is in the command path. The vessel it
+    describes is unbuilt.&rdquo;]
+  </span>
+</aside>
+
+
+<!-- =====================================================================
+     2. PER-ELEMENT PROVENANCE TAGS
+     Attach to any element whose realness a visitor needs to know.
+     Repeatable. Examples below show the two common shapes.
+
+     Example A — inline tag on a heading that describes an unbuilt thing:
+     ===================================================================== -->
+<!--
+<h2>The vessel-as-a-robot <span class="provenance">designed, not built</span></h2>
+-->
+
+<!-- =====================================================================
+     Example B — block note at the foot of a demo-card, stating the
+     mechanics of the surface above it:
+     ===================================================================== -->
+<!--
+<div class="demo-card">
+  ... the site's signature surface lives here ...
+  <p class="provenance provenance--block">
+    Deterministic state machine. The grammar is closed; no LLM is in
+    the command path. Source: path/to/repo.
+  </p>
+</div>
+-->

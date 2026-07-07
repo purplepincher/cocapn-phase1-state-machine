@@ -1,0 +1,864 @@
+<!doctype html>
+<!--
+  demo.html
+  -------------------------------------------------------------------
+  Live visualizer for the Phase 1 helm command-and-confirm state
+  machine (state-machine.js). Opens directly from disk (file://) with
+  NO BUILD STEP.
+
+  How it loads the FSM:
+    Chrome blocks ES-module imports from file:// (CORS). state-machine.js
+    is therefore a classic script that attaches its constructor to
+    window.cocapn (see the footer of that file). This page loads it with a
+    plain <script src="./state-machine.js">, NOT an import. The .ts file
+    is the canonical source; the .js is its type-stripped companion.
+
+  Styling:
+    The family design system (family/tokens.css, family/base.css, and —
+    because cocapn.com is that component's named consumer —
+    family/provenance-panel.css) is INLINED verbatim below in <style>,
+    per family/README.md ("inline at build time; never fetch at runtime").
+    The site-level :root then swaps --claw to --depth, the accent the
+    Round 1 plan assigns cocapn.com ("the water under the hull").
+
+  See README.md for run instructions and the judgment calls.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>cocapn · phase 1 · helm command-and-confirm simulation</title>
+
+  <!-- Progressive enhancement only: the family type stack (Fraunces /
+       IBM Plex). Loads when online; degrades gracefully to the Georgia /
+       system / monospace fallbacks in tokens.css when offline. Not a
+       build dependency. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap">
+
+  <style>
+    /* =====================================================================
+       INLINED VERBATIM — family/tokens.css
+       (the shared ground palette + per-site accent variables)
+       ===================================================================== */
+    :root {
+      /* --- ground palette + type system (verbatim from landing.html) --- */
+      --ink: #0E1A1C;
+      --ink-deep: #081113;
+      --shell: #F0E9D8;
+      --shell-dim: #C9C0AB;
+      --claw: #A8548C;
+      --claw-deep: #7A3B5E;
+      --lattice: #5FB4C7;
+      --lattice-dim: #3F8FA3;
+      --hardened: #D98B54;
+      --line: rgba(240, 233, 216, 0.14);
+      --display: "Fraunces", Georgia, serif;
+      --body: "IBM Plex Sans", -apple-system, sans-serif;
+      --mono: "IBM Plex Mono", "SF Mono", monospace;
+
+      --antifoul: #B0533A;
+      --depth: #1F4A5C;
+      --reef: #D97A5C;
+    }
+
+    /* =====================================================================
+       INLINED VERBATIM — family/base.css
+       (reset, type scale, and the load-bearing component shapes)
+       ===================================================================== */
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      background: var(--ink);
+      color: var(--shell);
+      font-family: var(--body);
+      font-size: 17px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    a { color: var(--lattice); }
+    a:focus-visible, button:focus-visible, input:focus-visible {
+      outline: 2px solid var(--lattice);
+      outline-offset: 3px;
+    }
+
+    ::selection { background: var(--claw); color: var(--shell); }
+
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 0 28px;
+    }
+
+    .eyebrow {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--lattice);
+      margin: 0 0 22px;
+      position: relative;
+    }
+
+    .chain {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0;
+      margin: 56px 0 8px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .chain-step {
+      flex: 1 1 220px;
+      padding: 22px 20px 22px 0;
+      border-right: 1px solid var(--line);
+    }
+    .chain-step:last-child { border-right: none; }
+    .chain-num {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--lattice-dim);
+      display: block;
+      margin-bottom: 8px;
+    }
+    .chain-step p {
+      margin: 0;
+      font-size: 0.94rem;
+      color: var(--shell-dim);
+    }
+    .chain-step strong {
+      display: block;
+      font-family: var(--display);
+      font-weight: 500;
+      font-size: 1.05rem;
+      color: var(--shell);
+      margin-bottom: 4px;
+    }
+
+    .demo-card {
+      position: relative;
+      margin-top: 36px;
+      background: rgba(8, 17, 19, 0.55);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 28px;
+      display: grid;
+      grid-template-columns: 1fr 260px;
+      gap: 28px;
+      align-items: stretch;
+    }
+
+    @media (max-width: 680px) {
+      .demo-card { grid-template-columns: 1fr; }
+    }
+
+    .ledger {
+      margin-top: 32px;
+      border-top: 1px solid var(--line);
+    }
+    .ledger-row {
+      display: grid;
+      grid-template-columns: 1.4fr 2.4fr auto;
+      gap: 20px;
+      align-items: baseline;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    @media (max-width: 620px) {
+      .ledger-row { grid-template-columns: 1fr; gap: 6px; }
+    }
+    .ledger-row.flagship {
+      background: linear-gradient(90deg, rgba(217,139,84,0.08), transparent 40%);
+    }
+    .ledger-name {
+      font-family: var(--display);
+      font-weight: 500;
+      font-size: 1.05rem;
+    }
+    .ledger-name a { color: var(--shell); text-decoration: none; border-bottom: 1px solid var(--line); }
+    .ledger-name a:hover { border-color: var(--lattice); color: var(--lattice); }
+    .ledger-desc { font-size: 0.92rem; color: var(--shell-dim); }
+    .ledger-tag {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--lattice-dim);
+      white-space: nowrap;
+      text-align: right;
+    }
+    .ledger-tag.hardened { color: var(--hardened); }
+
+    .bar-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      counter-reset: bar;
+    }
+    .bar-list li {
+      counter-increment: bar;
+      position: relative;
+      padding: 14px 0 14px 40px;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.95rem;
+      color: var(--shell-dim);
+    }
+    .bar-list li::before {
+      content: counter(bar);
+      position: absolute;
+      left: 0;
+      top: 14px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--lattice-dim);
+      width: 24px;
+    }
+    .bar-list strong { color: var(--shell); }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+
+    /* =====================================================================
+       INLINED VERBATIM — family/provenance-panel.css
+       (cocapn.com is the named consumer of this honesty component; see
+       family/README.md "Use on: cocapn.com".)
+       ===================================================================== */
+    .provenance-status {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 12px;
+      padding: 10px 28px;
+      background: var(--ink-deep);
+      border-bottom: 1px solid var(--line);
+      font-family: var(--mono);
+      font-size: 12.5px;
+      color: var(--shell-dim);
+    }
+    .provenance-status__word {
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--claw);
+      white-space: nowrap;
+    }
+    .provenance-status__text {
+      flex: 1 1 auto;
+      max-width: 70ch;
+    }
+    @media (max-width: 620px) {
+      .provenance-status { padding: 10px 18px; font-size: 11.5px; }
+    }
+    .provenance {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      color: var(--lattice-dim);
+      background: rgba(95, 180, 199, 0.08);
+      border: 1px solid var(--line);
+      padding: 2px 8px;
+      border-radius: 4px;
+      vertical-align: middle;
+      margin-left: 8px;
+    }
+    .provenance--block {
+      display: block;
+      margin: 14px 0 0;
+      background: transparent;
+      border: 0;
+      padding: 0;
+      font-size: 12.5px;
+      color: var(--shell-dim);
+    }
+
+    /* =====================================================================
+       SITE-LEVEL ACCENT SWAP — cocapn.com = "the water under the hull"
+       (Round 1 Section 2). All var(--claw) references above now read as
+       --depth. --claw-deep is re-pointed to a darker depth so hovers on
+       depth-colored controls stay coherent (tokens.css only defines
+       --depth, not a deep companion; this is the one small token added
+       by this demo).
+       ===================================================================== */
+    :root {
+      --claw: var(--depth);
+      --claw-deep: #143746;
+    }
+
+    /* =====================================================================
+       DEMO-SPECIFIC component styles (build on the family shapes above).
+       Kept minimal and within the family palette.
+       ===================================================================== */
+
+    header.page-head { padding: 40px 0 0; }
+    h1.title {
+      font-family: var(--display);
+      font-weight: 500;
+      font-size: 2.15rem;
+      line-height: 1.14;
+      letter-spacing: -0.01em;
+      margin: 0 0 10px;
+    }
+    p.lede {
+      color: var(--shell-dim);
+      margin: 0;
+      max-width: 64ch;
+      font-size: 1rem;
+    }
+
+    /* the demo-card interior: primary surface (timer + log) + sidebar.
+       base.css already gives .demo-card a 1fr / 260px grid; we fill it. */
+    .demo-primary { display: flex; flex-direction: column; min-width: 0; }
+    .demo-side { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+
+    /* ---------- TTL / countdown bar ----------
+       Adapts to whichever timer the FSM reports active:
+       ttl (500 ms pulse), confirm (10 s window), or lockout (10 s). */
+    .timer-block { margin-bottom: 22px; }
+    .timer-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 8px;
+      font-family: var(--mono);
+      font-size: 12.5px;
+    }
+    .timer-label {
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--lattice-dim);
+    }
+    .timer-remain { color: var(--shell); }
+    .timer-track {
+      height: 10px;
+      background: rgba(240, 233, 216, 0.06);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .timer-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--claw);
+      border-radius: 6px 0 0 6px;
+    }
+    .timer-fill[data-kind="ttl"]     { background: var(--claw); }
+    .timer-fill[data-kind="confirm"] { background: var(--lattice); }
+    .timer-fill[data-kind="lockout"] { background: var(--hardened); }
+
+    /* ---------- ActiveLog live event list ---------- */
+    .log-block { margin-top: 4px; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+    .log-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .log-head .eyebrow { margin: 0; color: var(--lattice-dim); }
+    .mini-btn {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--shell-dim);
+      background: transparent;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      padding: 3px 9px;
+      cursor: pointer;
+    }
+    .mini-btn:hover { color: var(--shell); border-color: var(--lattice-dim); }
+
+    .log-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      max-height: 380px;
+      overflow-y: auto;
+      border-top: 1px solid var(--line);
+    }
+    .log-row {
+      display: grid;
+      grid-template-columns: 88px 116px 1fr;
+      gap: 10px;
+      align-items: baseline;
+      padding: 9px 2px;
+      border-bottom: 1px solid var(--line);
+      animation: log-in 240ms ease-out;
+    }
+    @keyframes log-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+    .log-meta {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--lattice-dim);
+      white-space: nowrap;
+    }
+    .log-type {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--shell-dim);
+      white-space: nowrap;
+    }
+    .log-body {
+      font-family: var(--body);
+      font-size: 12.5px;
+      line-height: 1.45;
+      color: var(--shell);
+      word-break: break-word;
+    }
+    .log-type.t-helm-command    { color: var(--claw); }
+    .log-type.t-chat-exchange   { color: var(--shell); }
+    .log-type.t-speech-segment  { color: var(--shell-dim); }
+    .log-type.t-helm-event      { color: var(--hardened); }
+    .log-type.t-fix-track       { color: var(--lattice); }
+
+    /* ---------- sidebar readout ---------- */
+    .readout {
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 2px 0;
+    }
+    .readout-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .readout-row:last-child { border-bottom: 0; }
+    .readout-row .k {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--lattice-dim);
+    }
+    .readout-row .v {
+      font-family: var(--mono);
+      font-weight: 500;
+      font-size: 13px;
+      color: var(--shell);
+      text-align: right;
+    }
+    #rd-state[data-state="LOCKOUT"]              { color: var(--hardened); }
+    #rd-state[data-state="C1_PULSING"],
+    #rd-state[data-state="C2_PULSING"]           { color: var(--claw); }
+    #rd-state[data-state="C2_AWAITING_CONFIRM"]  { color: var(--lattice); }
+    #rd-relay[data-closed="1"]                   { color: var(--hardened); }
+    #rd-input[data-on="0"]                       { color: var(--hardened); }
+
+    /* ---------- preset / control buttons ---------- */
+    .presets {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px 14px 14px;
+      margin: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .presets legend {
+      flex-basis: 100%;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--lattice-dim);
+      padding: 0 2px;
+      margin-bottom: 4px;
+    }
+    .presets legend.sub { margin-top: 6px; }
+    .presets button {
+      flex: 1 1 auto;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--shell);
+      background: rgba(240, 233, 216, 0.04);
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 8px 10px;
+      cursor: pointer;
+      transition: border-color .12s ease, color .12s ease, background .12s ease;
+    }
+    .presets button:hover:not(:disabled)  { border-color: var(--lattice); color: var(--lattice); }
+    .presets button:active:not(:disabled) { background: rgba(95, 180, 199, 0.10); }
+    .presets button:disabled              { opacity: 0.4; cursor: not-allowed; }
+
+    /* the "auto" preset is wired to the physical-override path (T10),
+       not a voice command — see README.md judgment call. Styled to read
+       as a control rather than a grammar word. */
+    #btn-override       { color: var(--hardened); border-color: rgba(217, 139, 84, 0.40); }
+    #btn-override:hover:not(:disabled) { border-color: var(--hardened); color: var(--hardened); background: rgba(217, 139, 84, 0.08); }
+
+    .freeform { display: flex; gap: 8px; }
+    .freeform input {
+      flex: 1 1 auto;
+      min-width: 0;
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--shell);
+      background: rgba(240, 233, 216, 0.04);
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 9px 11px;
+    }
+    .freeform input::placeholder { color: var(--shell-dim); }
+    .freeform input:focus-visible { outline: 2px solid var(--lattice); outline-offset: 1px; }
+    .freeform button {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--shell);
+      background: var(--claw);
+      border: 1px solid var(--claw);
+      border-radius: 7px;
+      padding: 9px 14px;
+      cursor: pointer;
+    }
+    .freeform button:hover:not(:disabled) { background: var(--claw-deep); border-color: var(--claw-deep); }
+    .freeform button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .reset-btn {
+      width: 100%;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--shell-dim);
+      background: transparent;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 9px 10px;
+      cursor: pointer;
+    }
+    .reset-btn:hover { color: var(--shell); border-color: var(--lattice-dim); }
+
+    .foot-note {
+      grid-column: 1 / -1;
+      margin: 4px 0 0;
+      font-size: 12.5px;
+      color: var(--shell-dim);
+    }
+    .foot-note code {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--lattice-dim);
+    }
+
+    /* the provenance block note spans the whole card */
+    .demo-card > .provenance--block { grid-column: 1 / -1; }
+
+    @media (max-width: 680px) {
+      .log-row { grid-template-columns: 1fr; gap: 2px; }
+      .log-meta, .log-type { font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- persistent honesty status line (family/provenance-panel.html shape) -->
+  <aside class="provenance-status" role="status" aria-live="polite">
+    <span class="provenance-status__word">SIMULATION</span>
+    <span class="provenance-status__text">
+      Deterministic state machine — designed, not built. No LLM is in the
+      command path. The vessel it describes is unbuilt. Timers are real:
+      500&nbsp;ms pulse, 10&nbsp;s override lockout.
+    </span>
+  </aside>
+
+  <div class="wrap">
+    <header class="page-head">
+      <p class="eyebrow">cocapn.com · phase 1 · helm command-and-confirm loop</p>
+      <h1 class="title">&ldquo;Port ten. Belay that.&rdquo;</h1>
+      <p class="lede">
+        A live prototype of the 5-state, 13-transition helm FSM. Issue a
+        command; the relay closes for a 500&nbsp;ms trim pulse, then
+        releases. <em>Belay</em> cancels mid-pulse. C2 mode changes ask for
+        confirmation. Grabbing the physical helm locks voice out for
+        10&nbsp;seconds.
+      </p>
+    </header>
+
+    <div class="demo-card">
+      <!-- ============== primary: countdown bar + live ActiveLog ============== -->
+      <section class="demo-primary" aria-label="live state machine view">
+        <div class="timer-block">
+          <div class="timer-head">
+            <span class="timer-label" id="timer-label">no active timer</span>
+            <span class="timer-remain" id="timer-remain"></span>
+          </div>
+          <div class="timer-track" role="meter" aria-label="active timer remaining">
+            <div class="timer-fill" id="timer-fill"></div>
+          </div>
+          <p class="foot-note">
+            The bar reflects whichever timer the FSM reports active:
+            <code>ttl</code> (500&nbsp;ms, depth), <code>confirm</code>
+            (10&nbsp;s, lattice), or <code>lockout</code> (10&nbsp;s, oxide).
+          </p>
+        </div>
+
+        <div class="log-block">
+          <div class="log-head">
+            <span class="eyebrow">ActiveLog · live</span>
+            <button type="button" id="log-clear" class="mini-btn">clear</button>
+          </div>
+          <ol class="log-list" id="log-list" aria-live="polite" aria-relevant="additions"></ol>
+        </div>
+      </section>
+
+      <!-- ============== sidebar: readout + controls ============== -->
+      <aside class="demo-side" aria-label="state readout and controls">
+        <div class="readout">
+          <div class="readout-row"><span class="k">state</span><span class="v" id="rd-state">IDLE</span></div>
+          <div class="readout-row"><span class="k">heading</span><span class="v" id="rd-heading">045°</span></div>
+          <div class="readout-row"><span class="k">relay</span><span class="v" id="rd-relay" data-closed="0">open</span></div>
+          <div class="readout-row"><span class="k">input</span><span class="v" id="rd-input" data-on="1">enabled</span></div>
+          <div class="readout-row" id="rd-pending-wrap" style="display:none;">
+            <span class="k">pending</span><span class="v" id="rd-pending">—</span>
+          </div>
+        </div>
+
+        <fieldset class="presets">
+          <legend>presets (as briefed)</legend>
+          <!-- Labels show the spoken phrase; data-cmd carries the closed
+               grammar token (digits). The grammar in state-machine.js is
+               /^port (\d+)$/ — "port ten" as typed text would NOT parse.
+               The assistant echoes back in words via numberToWord, so the
+               loop still reads "port ten … complete." See README.md. -->
+          <button type="button" data-cmd="port 10">port ten</button>
+          <button type="button" data-cmd="starboard 5">starboard five</button>
+          <button type="button" id="btn-override" title="The word 'auto' has no production in the closed grammar. It is mapped to the T10 physical helm override (autopilot handoff) so the 10-second LOCKOUT state is reachable from the demo. See README.md.">auto</button>
+          <button type="button" data-cmd="belay">belay</button>
+
+          <legend class="sub">more grammar</legend>
+          <button type="button" data-cmd="deck red">deck red</button>
+          <button type="button" data-cmd="course 045">course 045</button>
+          <button type="button" data-cmd="confirm">confirm</button>
+          <button type="button" data-cmd="what's our heading">query heading</button>
+        </fieldset>
+
+        <form class="freeform" id="freeform" autocomplete="off">
+          <input type="text" id="phrase" placeholder="port 10 · starboard 5 · course 045 · belay" aria-label="free-text helm phrase">
+          <button type="submit">submit</button>
+        </form>
+
+        <button type="button" id="btn-reset" class="reset-btn">reset everything</button>
+      </aside>
+
+      <p class="provenance provenance--block">
+        Deterministic state machine. The grammar is closed; no LLM is in
+        the command path. Source: <code>./state-machine.js</code> — the
+        type-stripped, browser-loadable companion of
+        <code>./state-machine.ts</code>. Family CSS inlined verbatim from
+        <code>./family/</code>; cocapn.com accent is <code>--depth</code>.
+      </p>
+    </div>
+  </div>
+
+  <!-- The FSM. Classic script (NOT an ES module) because Chrome blocks
+       module imports from file://. It attaches window.cocapn. -->
+  <script src="./state-machine.js"></script>
+  <script>
+    (function () {
+      "use strict";
+
+      var HSM = window.cocapn.HelmStateMachine;
+      var EventType = window.cocapn.EventType;
+      var TTL_MS = window.cocapn.TTL_MS;
+
+      // -----------------------------------------------------------------
+      // construct the machine. lightingProvisioned=true so the C2 lighting
+      // path ("deck red") is exercisable; initialHeading=045 so trim pulses
+      // produce visible, nautical-looking heading changes.
+      // -----------------------------------------------------------------
+      var fsm = new HSM({ initialHeading: 45, lightingProvisioned: true });
+
+      // DOM handles
+      var elState       = document.getElementById("rd-state");
+      var elHeading     = document.getElementById("rd-heading");
+      var elRelay       = document.getElementById("rd-relay");
+      var elInput       = document.getElementById("rd-input");
+      var elPendingWrap = document.getElementById("rd-pending-wrap");
+      var elPending     = document.getElementById("rd-pending");
+      var elTimerLabel  = document.getElementById("timer-label");
+      var elTimerRemain = document.getElementById("timer-remain");
+      var elTimerFill   = document.getElementById("timer-fill");
+      var elList        = document.getElementById("log-list");
+      var elPhrase      = document.getElementById("phrase");
+      var elFreeBtn     = document.querySelector("#freeform button");
+
+      // ---- helpers ----------------------------------------------------
+      function fmtHdg(h) {
+        var n = ((Math.round(h) % 360) + 360) % 360;
+        return (n < 10 ? "00" : n < 100 ? "0" : "") + n + "°";
+      }
+
+      // ---- readout renderers -----------------------------------------
+      function renderState(s)    { elState.textContent = s; elState.dataset.state = s; }
+      function renderVessel(v)   { elHeading.textContent = fmtHdg(v.heading); }
+      function renderRelay(closed, cause) {
+        elRelay.textContent = closed ? "closed" : "open";
+        elRelay.dataset.closed = closed ? "1" : "0";
+        if (cause) elRelay.title = "last transition: " + cause;
+      }
+      function renderInput(enabled) {
+        elInput.textContent = enabled ? "enabled" : "locked out";
+        elInput.dataset.on = enabled ? "1" : "0";
+        // voice input is physically released during override lockout
+        var voiceButtons = document.querySelectorAll("[data-cmd]");
+        for (var i = 0; i < voiceButtons.length; i++) voiceButtons[i].disabled = !enabled;
+        elPhrase.disabled = !enabled;
+        elFreeBtn.disabled = !enabled;
+      }
+      function renderPending(p) {
+        if (!p) { elPendingWrap.style.display = "none"; return; }
+        elPendingWrap.style.display = "";
+        elPending.textContent = p.class + " · " + p.action + " → " + fmtHdg(p.targetHeading);
+      }
+
+      // ---- countdown bar (rAF, driven by onTimerStart / onTimerEnd) ---
+      var timerInfo = null;   // { kind, start, ms }
+      var rafId = null;
+
+      function labelFor(kind) {
+        if (kind === "ttl")     return "TTL pulse";
+        if (kind === "confirm") return "confirm window";
+        if (kind === "lockout") return "override lockout";
+        return kind;
+      }
+      function startTimerBar(kind, ms) {
+        timerInfo = { kind: kind, start: performance.now(), ms: ms };
+        elTimerLabel.textContent = labelFor(kind) + " · " + ms + " ms";
+        elTimerFill.dataset.kind = kind;
+        if (rafId === null) rafId = requestAnimationFrame(tick);
+      }
+      function stopTimerBar() {
+        timerInfo = null;
+        elTimerLabel.textContent = "no active timer";
+        elTimerRemain.textContent = "";
+        elTimerFill.style.width = "0%";
+        elTimerFill.removeAttribute("data-kind");
+        if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+      }
+      function tick() {
+        rafId = null;
+        if (!timerInfo) return;
+        var elapsed = performance.now() - timerInfo.start;
+        var remain = Math.max(0, timerInfo.ms - elapsed);
+        var pct = (remain / timerInfo.ms) * 100;
+        elTimerFill.style.width = pct.toFixed(2) + "%";
+        elTimerRemain.textContent = Math.ceil(remain) + " ms";
+        if (remain > 0) rafId = requestAnimationFrame(tick);
+      }
+
+      // ---- ActiveLog event list --------------------------------------
+      var MAX_LOG = 60;
+      function summarize(ev) {
+        var b = ev.body || {};
+        switch (ev.type) {
+          case EventType.HELM_COMMAND:
+            var s = b.class + " " + b.action + " · " + b.result;
+            if (b.cancel_reason) s += " (" + b.cancel_reason + ")";
+            if (b.confirmed_by)  s += " confirmed_by=" + b.confirmed_by;
+            return s;
+          case EventType.CHAT_EXCHANGE:
+            return b.role + ": " + b.text;
+          case EventType.SPEECH_SEGMENT:
+            return "\u201c" + b.text + "\u201d conf=" + b.conf;
+          case EventType.HELM_EVENT:
+            return b.event_type + " \u2014 " + b.detail;
+          case EventType.FIX_TRACK:
+            var f = ev.fix || {};
+            return "cog=" + (f.cog != null ? f.cog : "?") +
+                   " sog=" + (f.sog != null ? f.sog : "?");
+          default:
+            return JSON.stringify(b);
+        }
+      }
+      function addEvent(ev) {
+        var li = document.createElement("li");
+        li.className = "log-row";
+
+        var meta = document.createElement("span");
+        meta.className = "log-meta";
+        meta.textContent = ev.dev + " · #" + ev.seq;
+
+        var type = document.createElement("span");
+        type.className = "log-type t-" + ev.type.replace(/[.]/g, "-");
+        type.textContent = ev.type;
+
+        var body = document.createElement("span");
+        body.className = "log-body";
+        body.textContent = summarize(ev);
+
+        li.appendChild(meta);
+        li.appendChild(type);
+        li.appendChild(body);
+
+        elList.insertBefore(li, elList.firstChild);
+        while (elList.children.length > MAX_LOG) {
+          elList.removeChild(elList.lastChild);
+        }
+      }
+
+      // ---- wire the listener -----------------------------------------
+      fsm.setListener({
+        onStateChange: function (next)       { renderState(next); },
+        onVesselState: function (v)          { renderVessel(v); },
+        onRelay:       function (closed, c)  { renderRelay(closed, c); },
+        onInputEnabled:function (on)         { renderInput(on); },
+        onPending:     function (p)          { renderPending(p); },
+        onTimerStart:  function (kind, ms)   { startTimerBar(kind, ms); },
+        onTimerEnd:    function ()           { stopTimerBar(); },
+        onEvent:       function (ev)         { addEvent(ev); }
+      });
+
+      // initial paint (listener only fires on changes)
+      renderState(fsm.getState());
+      renderVessel(fsm.getVesselState());
+      renderRelay(false, null);
+      renderInput(true);
+      renderPending(fsm.getPending());
+
+      // ---- controls --------------------------------------------------
+      function submitPhrase(raw) {
+        if (!raw) return;
+        fsm.submit(raw, "sim-phone");
+      }
+
+      var cmdButtons = document.querySelectorAll("[data-cmd]");
+      for (var i = 0; i < cmdButtons.length; i++) {
+        (function (btn) {
+          btn.addEventListener("click", function () {
+            submitPhrase(btn.getAttribute("data-cmd"));
+          });
+        })(cmdButtons[i]);
+      }
+
+      document.getElementById("btn-override").addEventListener("click", function () {
+        fsm.override(); // T10 — physical helm takeover -> 10s LOCKOUT
+      });
+
+      document.getElementById("btn-reset").addEventListener("click", function () {
+        fsm.reset({ initialHeading: 45, lightingProvisioned: true });
+        stopTimerBar(); // belt-and-suspenders; the listener already stops it
+      });
+
+      document.getElementById("freeform").addEventListener("submit", function (e) {
+        e.preventDefault();
+        submitPhrase(elPhrase.value);
+        elPhrase.value = "";
+      });
+
+      document.getElementById("log-clear").addEventListener("click", function () {
+        elList.innerHTML = "";
+      });
+    })();
+  </script>
+</body>
+</html>

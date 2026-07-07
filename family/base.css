@@ -1,0 +1,207 @@
+/*
+  family/base.css
+  -------------------------------------------------------------------
+  Shared reset, type scale, and the load-bearing component shapes for
+  the PurplePincher domain family. Extracted and generalized from
+  purplepincher-landing-reference/src/landing.html.
+
+  Purplepincher-specific content text has been removed; the CSS
+  structure and class names are preserved verbatim so any family site
+  can reuse them by writing HTML that uses these classes.
+
+  Depends on the tokens defined in family/tokens.css. Inline both
+  files at build time into each site's <style> block; never fetch at
+  runtime. See family/README.md.
+
+  Components provided (the named load-bearing shapes):
+    .eyebrow                    mono section label
+    .chain / .chain-step        numbered sequence (order carries meaning)
+    .ledger / .ledger-row       registry of named things with tags
+    .demo-card                  interactive-surface shell
+    .bar-list                   numbered criteria list
+*/
+
+/* ---------- reset + base type ---------- */
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--shell);
+  font-family: var(--body);
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+a { color: var(--lattice); }
+a:focus-visible, button:focus-visible, input:focus-visible {
+  outline: 2px solid var(--lattice);
+  outline-offset: 3px;
+}
+
+::selection { background: var(--claw); color: var(--shell); }
+
+.wrap {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 0 28px;
+}
+
+/* ---------- .eyebrow : mono section label ---------- */
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lattice);
+  margin: 0 0 22px;
+  position: relative;
+}
+
+/* ---------- .chain : a real sequence, numbered because order carries meaning ---------- */
+
+.chain {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin: 56px 0 8px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.chain-step {
+  flex: 1 1 220px;
+  padding: 22px 20px 22px 0;
+  border-right: 1px solid var(--line);
+}
+.chain-step:last-child { border-right: none; }
+
+.chain-num {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--lattice-dim);
+  display: block;
+  margin-bottom: 8px;
+}
+
+.chain-step p {
+  margin: 0;
+  font-size: 0.94rem;
+  color: var(--shell-dim);
+}
+
+.chain-step strong {
+  display: block;
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: 1.05rem;
+  color: var(--shell);
+  margin-bottom: 4px;
+}
+
+/* ---------- .demo-card : interactive-surface shell ----------
+   The outer shell only. Each site's signature surface lives inside
+   (a canvas, a state machine, a logbook replay, etc.) and is built
+   by that site. The grid gives a primary area + a narrow sidebar
+   (readout / controls); override grid-template-columns in site CSS
+   if your surface needs a different interior layout. */
+
+.demo-card {
+  position: relative;
+  margin-top: 36px;
+  background: rgba(8, 17, 19, 0.55);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 28px;
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 28px;
+  align-items: stretch;
+}
+
+@media (max-width: 680px) {
+  .demo-card { grid-template-columns: 1fr; }
+}
+
+/* ---------- .ledger : real accounting, not decoration ---------- */
+
+.ledger {
+  margin-top: 32px;
+  border-top: 1px solid var(--line);
+}
+
+.ledger-row {
+  display: grid;
+  grid-template-columns: 1.4fr 2.4fr auto;
+  gap: 20px;
+  align-items: baseline;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+@media (max-width: 620px) {
+  .ledger-row { grid-template-columns: 1fr; gap: 6px; }
+}
+
+.ledger-row.flagship {
+  background: linear-gradient(90deg, rgba(217,139,84,0.08), transparent 40%);
+}
+
+.ledger-name {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: 1.05rem;
+}
+.ledger-name a { color: var(--shell); text-decoration: none; border-bottom: 1px solid var(--line); }
+.ledger-name a:hover { border-color: var(--lattice); color: var(--lattice); }
+
+.ledger-desc { font-size: 0.92rem; color: var(--shell-dim); }
+
+.ledger-tag {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--lattice-dim);
+  white-space: nowrap;
+  text-align: right;
+}
+.ledger-tag.hardened { color: var(--hardened); }
+
+/* ---------- .bar-list : the actual mechanism, plainly ---------- */
+
+.bar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: bar;
+}
+
+.bar-list li {
+  counter-increment: bar;
+  position: relative;
+  padding: 14px 0 14px 40px;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.95rem;
+  color: var(--shell-dim);
+}
+.bar-list li::before {
+  content: counter(bar);
+  position: absolute;
+  left: 0;
+  top: 14px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--lattice-dim);
+  width: 24px;
+}
+.bar-list strong { color: var(--shell); }
+
+/* ---------- reduced motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}

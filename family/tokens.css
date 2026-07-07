@@ -1,0 +1,73 @@
+/*
+  family/tokens.css
+  -------------------------------------------------------------------
+  Shared design tokens for the PurplePincher domain family.
+
+  The first block (`:root` ground palette + type system) is extracted
+  verbatim from purplepincher-landing-reference/src/landing.html (the
+  `:root` at lines 13-27). It is the fixed visual baseline for every
+  family site; do not edit it here without also editing the reference.
+
+  The second block (per-site accent variables) names the additional
+  accents from the Round 1 plan (ROUND_1_glm.md, Section 2 table).
+  Each family site overrides `--claw` with the one accent it has chosen
+  (e.g. deckboss.net writes `--claw: var(--antifoul);` in its own
+  site-level `:root`). The variables below are defined so the swap is
+  by name, not by magic hex.
+
+  Pair with family/base.css. Inline at build time; never fetch at
+  runtime. See family/README.md.
+*/
+
+:root {
+  /* --- ground palette + type system (verbatim from landing.html) --- */
+  --ink: #0E1A1C;
+  --ink-deep: #081113;
+  --shell: #F0E9D8;
+  --shell-dim: #C9C0AB;
+  --claw: #A8548C;
+  --claw-deep: #7A3B5E;
+  --lattice: #5FB4C7;
+  --lattice-dim: #3F8FA3;
+  --hardened: #D98B54;
+  --line: rgba(240, 233, 216, 0.14);
+  --display: "Fraunces", Georgia, serif;
+  --body: "IBM Plex Sans", -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", "SF Mono", monospace;
+
+  /* --- per-family-site accents (ROUND_1_glm.md Section 2 table) ---
+     Each site swaps --claw for one of these in its own :root. They are
+     defined here so the swap reads by name. Sites that do not use a
+     given accent simply ignore it; unused variables cost nothing once
+     inlined. */
+
+  /* deckboss.net — anti-fouling bottom-paint oxide. The most confident
+     accent in the table: a real, specific marine color that reads
+     "working vessel" to anyone who knows boats and "warm, weathered,
+     not corporate" to everyone else. Deliberately avoids marine-blue
+     cliché and AI-startup violet. */
+  --antifoul: #B0533A;
+
+  /* cocapn.com — the water under the hull. A deeper blue-green than
+     purplepincher's cyan lattice, distinct from both --ink and
+     --lattice. cocapn.com is the site *about* the boat, so the accent
+     is the water. Keeps the cool family register while being its own. */
+  --depth: #1F4A5C;
+
+  /* superinstance.ai — warm coral / sand-rose. The softest, warmest
+     accent, for the "soft origin" station of the lifecycle.
+     NOTE: superinstance.ai turned out to already have its own real,
+     different visual identity live on Cloudflare Pages — a green-on-
+     black terminal aesthetic. This variable is therefore likely to go
+     UNUSED for superinstance.ai specifically (that site will probably
+     keep its existing palette rather than adopt the family skeleton).
+     It is kept defined here because ROUND_1_glm.md Section 2 named it;
+     removing it would silently contradict the plan. If superinstance.ai
+     does adopt the family skeleton, --reef is the accent the plan
+     assigns it. */
+  --reef: #D97A5C;
+
+  /* cocapn.ai promotes --lattice (cyan) to primary rather than
+     introducing a new accent variable; no new token needed here.
+     See ROUND_1_glm.md Section 2 table and family/README.md. */
+}
